@@ -1,0 +1,19 @@
+# Virtual Environment
+venv/
+env/
+.env
+
+# Python Caches
+__pycache__/
+*.pyc
+
+# Data Folders 
+data/raw/
+data/staging/
+*.csv
+*.parquet
+*.gz
+
+# IDE and OS files
+.vscode/
+.DS_Store
