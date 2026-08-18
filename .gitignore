@@ -7,6 +7,9 @@ env/
 __pycache__/
 *.pyc
 
+# SQL Server data files
+docker/sqlserver/data/
+
 # Data Folders 
 data/raw/
 data/staging/
