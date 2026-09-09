@@ -14,7 +14,7 @@ Answer Below business qestions:
 4. Discovering the most reviewed properties to analyze customer engagement.
 
 ## Resources
-airBnB.com
+- [Airbnb.com](https://www.airbnb.com)
 
 ## Tech Stack
 - **Language:** Python (Pandas, SQLAlchemy, PyODBC)
@@ -39,5 +39,4 @@ The data warehouse is built on a Star Schema optimized for OLAP queries:
 - **Automated Orchestration:** Integrated Apache Airflow to schedule and monitor the pipeline (`run_staging_layer` >> `run_data_warehouse_layer`), moving the project from manual execution to a production-ready state.
 - **Custom Docker Image:** Built a customized Airflow Docker image packed with Microsoft ODBC Driver 18 for seamless SQL Server connectivity.
 
-
-*(Refer to the `Data_pipeline.drawio.png` file in this repository for the visual Entity-Relationship Diagram).*
+![Data Pipeline Architecture](Data_pipeline.drawio.png)

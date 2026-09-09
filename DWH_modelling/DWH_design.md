@@ -27,5 +27,4 @@ The grain determines the level of detail in a single row of the Fact table. Sinc
 
 ## Star Schema Architecture
 The resulting architecture is a robust **Star Schema** with shared conformed dimensions (`DimListing`, `DimDate`). This allows cross-process analysis, such as comparing a listing's total reviews in a specific month against its availability in that same month.
-
-*(Refer to the `DWH_Schema.drawio.png` file in this repository for the visual Entity-Relationship Diagram).*
+![Star Schema ERD](DWH_Schema.drawio.png)
