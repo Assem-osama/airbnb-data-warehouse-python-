@@ -21,11 +21,6 @@ CALENDAR_FILE = STAGING_DIR / "stg_calendar.csv"
 
 CHUNK_SIZE = 10_000
 
-
-# ============================================================
-# HELPERS
-# ============================================================
-
 def print_section(title):
     print("\n" + "=" * 70)
     print(title)
@@ -234,16 +229,12 @@ def load_dim_listing(engine):
         f"Source listing rows: {len(listings):,}"
     )
 
-    # --------------------------------------------------------
-    # Select required columns
-    # --------------------------------------------------------
-
     listings = listings[
         [
             "listing_id",
             "host_id",
             "host_name",
-            "host_since",
+            "price",
             "host_is_superhost",
             "neighbourhood",
             "latitude",
@@ -257,17 +248,20 @@ def load_dim_listing(engine):
         ]
     ].copy()
 
-    # --------------------------------------------------------
-    # Remove duplicate listings
-    # --------------------------------------------------------
-
     listings = listings.drop_duplicates(
         subset=["listing_id"]
     )
 
-    # --------------------------------------------------------
+    if "price" in listings.columns:
+        listings["price"] = (
+            listings["price"]
+            .astype(str)
+            .str.replace("$", "", regex=False)
+            .str.replace(",", "", regex=False)
+        )
+        listings["price"] = pd.to_numeric(listings["price"], errors="coerce")
+
     # Lookup neighbourhood surrogate key
-    # --------------------------------------------------------
 
     dim_neighbourhood = pd.read_sql(
         """
@@ -285,9 +279,7 @@ def load_dim_listing(engine):
         how="left"
     )
 
-    # --------------------------------------------------------
     # Validate lookup
-    # --------------------------------------------------------
 
     missing_neighbourhood_keys = (
         listings["neighbourhood_key"]
@@ -318,16 +310,15 @@ def load_dim_listing(engine):
 
         print(missing.head())
 
-    # --------------------------------------------------------
+
     # Prepare final DW dataframe
-    # --------------------------------------------------------
 
     listings = listings[
         [
             "listing_id",
             "host_id",
             "host_name",
-            "host_since",
+            "price",
             "host_is_superhost",
             "neighbourhood_key",
             "latitude",
@@ -356,10 +347,6 @@ def load_dim_listing(engine):
         f"Final listing rows: {len(listings):,}"
     )
 
-    # --------------------------------------------------------
-    # Load
-    # --------------------------------------------------------
-
     listings.to_sql(
         name="DimListing",
         con=engine,
@@ -387,9 +374,7 @@ def load_fact_reviews(engine):
 
     print_section("LOADING FACT_REVIEWS")
 
-    # --------------------------------------------------------
     # Load lookup table
-    # --------------------------------------------------------
 
     listing_lookup = pd.read_sql(
         """
@@ -406,9 +391,7 @@ def load_fact_reviews(engine):
         f"{len(listing_lookup):,}"
     )
 
-    # --------------------------------------------------------
     # Process reviews in chunks
-    # --------------------------------------------------------
 
     total_loaded = 0
 
@@ -426,10 +409,6 @@ def load_fact_reviews(engine):
             f"{chunk_number}..."
         )
 
-        # ----------------------------------------------------
-        # Select required columns
-        # ----------------------------------------------------
-
         reviews = reviews[
             [
                 "listing_id",
@@ -439,35 +418,23 @@ def load_fact_reviews(engine):
             ]
         ].copy()
 
-        # ----------------------------------------------------
-        # Lookup listing_key
-        # ----------------------------------------------------
-
         reviews = reviews.merge(
             listing_lookup,
             on="listing_id",
             how="inner"
         )
-
-        # ----------------------------------------------------
-        # Create date_key
-        # ----------------------------------------------------
-
+        
         reviews["date_key"] = (
             reviews["date"]
             .dt.strftime("%Y%m%d")
             .astype(int)
         )
 
-        # ----------------------------------------------------
         # Add measure
-        # ----------------------------------------------------
 
         reviews["review_count"] = 1
 
-        # ----------------------------------------------------
         # Final columns
-        # ----------------------------------------------------
 
         reviews = reviews[
             [
@@ -478,10 +445,6 @@ def load_fact_reviews(engine):
                 "review_count"
             ]
         ]
-
-        # ----------------------------------------------------
-        # Load
-        # ----------------------------------------------------
 
         reviews.to_sql(
             name="FactReviews",
@@ -517,10 +480,6 @@ def load_fact_availability(engine):
 
     print_section("LOADING FACT_AVAILABILITY")
 
-    # --------------------------------------------------------
-    # Load listing lookup
-    # --------------------------------------------------------
-
     listing_lookup = pd.read_sql(
         """
         SELECT
@@ -538,10 +497,7 @@ def load_fact_availability(engine):
 
     total_loaded = 0
 
-    # --------------------------------------------------------
     # Process calendar in chunks
-    # --------------------------------------------------------
-
     for chunk_number, calendar in enumerate(
         pd.read_csv(
             CALENDAR_FILE,
@@ -556,10 +512,7 @@ def load_fact_availability(engine):
             f"{chunk_number}..."
         )
 
-        # ----------------------------------------------------
-        # Select required columns
-        # ----------------------------------------------------
-
+        
         calendar = calendar[
             [
                 "listing_id",
@@ -570,29 +523,20 @@ def load_fact_availability(engine):
             ]
         ].copy()
 
-        # ----------------------------------------------------
-        # Lookup listing_key
-        # ----------------------------------------------------
-
         calendar = calendar.merge(
             listing_lookup,
             on="listing_id",
             how="inner"
         )
 
-        # ----------------------------------------------------
         # Create date_key
-        # ----------------------------------------------------
-
         calendar["date_key"] = (
             calendar["date"]
             .dt.strftime("%Y%m%d")
             .astype(int)
         )
 
-        # ----------------------------------------------------
         # Convert availability
-        # ----------------------------------------------------
 
         calendar["available"] = (
             calendar["available"]
@@ -604,11 +548,7 @@ def load_fact_availability(engine):
             })
         )
 
-
-        # ----------------------------------------------------
         # Final columns
-        # ----------------------------------------------------
-
         calendar = calendar[
             [
                 "listing_key",
@@ -619,20 +559,13 @@ def load_fact_availability(engine):
             ]
         ]
 
-        # ----------------------------------------------------
         # Remove duplicate listing/date
-        # ----------------------------------------------------
-
         calendar = calendar.drop_duplicates(
             subset=[
                 "listing_key",
                 "date_key"
             ]
         )
-
-        # ----------------------------------------------------
-        # Load
-        # ----------------------------------------------------
 
         calendar.to_sql(
             name="FactAvailability",
@@ -687,10 +620,7 @@ def validate_dw(engine):
             f"{table:<25} {count:>12,} rows"
         )
 
-    # --------------------------------------------------------
     # Check orphan reviews
-    # --------------------------------------------------------
-
     with engine.connect() as connection:
 
         orphan_reviews = connection.execute(
@@ -708,10 +638,7 @@ def validate_dw(engine):
             f"{orphan_reviews:,}"
         )
 
-        # ----------------------------------------------------
         # Check orphan availability
-        # ----------------------------------------------------
-
         orphan_availability = connection.execute(
             text("""
                 SELECT COUNT(*)
@@ -727,10 +654,7 @@ def validate_dw(engine):
             f"{orphan_availability:,}"
         )
 
-        # ----------------------------------------------------
         # Check invalid dates
-        # ----------------------------------------------------
-
         invalid_review_dates = connection.execute(
             text("""
                 SELECT COUNT(*)
@@ -764,19 +688,22 @@ def validate_dw(engine):
 def clear_dwh(engine):
     print_section("CLEARING OLD DATA (RESETTING DWH)")
     
-    # الترتيب مهم جداً: الـ Facts الأول، وبعدين الـ Dimensions
-    tables_to_clear = [
-        "FactAvailability",
-        "FactReviews",
-        "DimListing",
-        "DimDate",
-        "DimNeighbourhood"
-    ]
-    
     with engine.begin() as conn:
-        for table in tables_to_clear:
-            conn.execute(text(f"DELETE FROM dw.{table}"))
-            print(f"Cleared table: dw.{table}")
+        conn.execute(text("TRUNCATE TABLE dw.FactAvailability"))
+        print("Truncated table: dw.FactAvailability")
+        
+        conn.execute(text("TRUNCATE TABLE dw.FactReviews"))
+        print("Truncated table: dw.FactReviews")
+
+        conn.execute(text("DELETE FROM dw.DimListing"))
+        print("Cleared table: dw.DimListing")
+        
+        conn.execute(text("DELETE FROM dw.DimDate"))
+        print("Cleared table: dw.DimDate")
+        
+        conn.execute(text("DELETE FROM dw.DimNeighbourhood"))
+        print("Cleared table: dw.DimNeighbourhood")
+
 
 # ============================================================
 # MAIN ETL PIPELINE
@@ -790,9 +717,7 @@ def main():
     print("AIRBNB BARCELONA - DATA WAREHOUSE LOAD")
     print("=" * 70)
 
-    # --------------------------------------------------------
     # Check staging files
-    # --------------------------------------------------------
 
     print_section("CHECKING STAGING FILES")
 
@@ -809,9 +734,7 @@ def main():
 
         print(f"OK: {file}")
 
-    # --------------------------------------------------------
     # Connect to SQL Server
-    # --------------------------------------------------------
 
     print_section("CONNECTING TO SQL SERVER")
 
@@ -827,35 +750,22 @@ def main():
 
     clear_dwh(engine)
 
-
-    # --------------------------------------------------------
-    # Load dimensions
-    # --------------------------------------------------------
-
+    # Load dimensions & facts
     load_dim_neighbourhood(engine)
 
     load_dim_date(engine)
 
     load_dim_listing(engine)
 
-    # --------------------------------------------------------
-    # Load facts
-    # --------------------------------------------------------
-
     load_fact_reviews(engine)
 
     load_fact_availability(engine)
 
-    # --------------------------------------------------------
     # Validate
-    # --------------------------------------------------------
-
     validate_dw(engine)
 
-    # --------------------------------------------------------
     # Finish
-    # --------------------------------------------------------
-
+    
     elapsed = time.time() - start_time
 
     print_section("ETL COMPLETED")

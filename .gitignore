@@ -2,6 +2,7 @@
 venv/
 env/
 .env
+logs/
 
 # Python Caches
 __pycache__/

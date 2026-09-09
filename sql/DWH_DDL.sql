@@ -1,7 +1,7 @@
-CREATE DATABASE AirbnbBarcelonaDW;
+CREATE DATABASE AirbnbDWH;
 GO
 
-USE AirbnbBarcelonaDW;
+USE AirbnbDWH;
 GO
 
 CREATE SCHEMA dw;
@@ -34,7 +34,7 @@ CREATE TABLE dw.DimListing
 
     host_name NVARCHAR(255) NULL,
 
-    host_since DATE NULL,
+    price float NULL,
 
     host_is_superhost BIT NULL,
 
@@ -136,8 +136,6 @@ CREATE TABLE dw.FactAvailability
     date_key INT NOT NULL,
 
     available BIT NOT NULL,
-
-    price DECIMAL(12,2) NULL,
 
     minimum_nights INT NULL,
 
