@@ -1,4 +1,0 @@
-pandas>=2.0.0
-sqlalchemy>=2.0.0
-pyodbc>=5.0.0
-apache-airflow>=2.9.2
